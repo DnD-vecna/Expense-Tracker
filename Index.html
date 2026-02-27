@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* AESTHETIC BACKGROUND */
+        body {
+            background-image: url('https://thumbs.dreamstime.com/b/nice-theme-landscape-anime-background-colors-nice-theme-landscape-anime-background-349420745.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        /* GLASSMORPHISM EFFECTS */
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-light {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        /* ANIMATIONS */
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(15px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .float { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* CUSTOM SCROLLBAR FOR AESTHETICS */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.8); }
+    </style>
+</head>
+<body class="font-sans antialiased text-gray-900 min-h-screen">
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- LOGIN SECTION -->
+    <!-- Removed solid bg-gray-900 and replaced with a dark backdrop overlay -->
+    <div id="login-section" class="min-h-screen flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all duration-300">
+        <!-- Applied float animation and dark glass effect -->
+        <div class="glass-dark p-8 rounded-2xl w-96 text-center float">
+            <h1 class="text-3xl font-bold mb-2 text-white tracking-wide">Expense Tracker</h1>
+            <div class="bg-blue-900/40 border border-blue-400/30 text-blue-100 text-xs p-3 rounded-xl mb-6 text-left backdrop-blur-sm shadow-inner">
+                <strong>How it works:</strong> Enter a Unique Spreadsheet Key (UID). 
+                If it exists, you'll see your data. <strong>If it doesn't exist, we will create a new, secure dashboard for you instantly.</strong>
+            </div>
+            <input type="text" id="uid-input" placeholder="e.g. MySecretKey123" class="w-full px-4 py-3 bg-white/10 border border-white/20 text-white placeholder-gray-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white/20 font-semibold text-center transition-all">
+            <button id="login-btn" onclick="login()" class="w-full bg-blue-500 hover:bg-blue-400 text-white py-3 rounded-xl transition-all duration-300 transform hover:scale-[1.02] font-bold shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                Access Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- DASHBOARD SECTION (Hidden by default) -->
+    <div id="dashboard-section" class="hidden min-h-screen fade-in pb-10">
+        
+        <!-- Navigation (Floating Glass Nav) -->
+        <div class="max-w-7xl mx-auto pt-6 px-6">
+            <nav class="glass-light px-6 py-4 flex justify-between items-center rounded-2xl">
+                <h1 class="text-xl font-extrabold text-gray-800 tracking-tight">Expense Dashboard</h1>
+                <div class="flex items-center gap-4 border border-white/60 bg-white/40 shadow-sm px-4 py-1.5 rounded-full backdrop-blur-sm">
+                    <span class="text-sm text-gray-600 font-medium">UID: <strong id="display-uid" class="text-blue-600"></strong></span>
+                    <span class="text-gray-400">|</span>
+                    <button onclick="logout()" class="text-sm text-red-500 hover:text-red-700 font-bold transition-colors">Logout</button>
+                </div>
+            </nav>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-6 pt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- LEFT COLUMN: Summary & Add Form -->
+            <div class="space-y-6 lg:col-span-1">
+                
+                <!-- Monthly Summary Cards -->
+                <div class="glass-light rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300">
+                    <h2 class="text-lg font-bold mb-4 border-b border-gray-300/50 pb-2 text-gray-800">This Month's Summary</h2>
+                    <div class="grid grid-cols-2 gap-4 text-center mb-4">
+                        <div class="bg-white/50 rounded-xl p-3 border border-white/60 shadow-sm hover:bg-white/70 transition-all cursor-default">
+                            <p class="text-xs text-green-600 uppercase font-bold tracking-wider">Income</p>
+                            <p id="sum-income" class="text-xl font-bold text-green-700">$0.00</p>
+                        </div>
+                        <div class="bg-white/50 rounded-xl p-3 border border-white/60 shadow-sm hover:bg-white/70 transition-all cursor-default">
+                            <p class="text-xs text-red-500 uppercase font-bold tracking-wider">Spent</p>
+                            <p id="sum-expense" class="text-xl font-bold text-red-600">$0.00</p>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50/60 rounded-xl p-4 border border-blue-200/50 text-center shadow-sm hover:bg-blue-50/80 transition-all cursor-default">
+                        <p class="text-xs text-blue-600 uppercase font-bold tracking-wider">Net Balance</p>
+                        <p id="sum-balance" class="text-3xl font-extrabold text-blue-700 drop-shadow-sm">$0.00</p>
+                    </div>
+                </div>
+
+                <!-- Add Transaction Form -->
+                <div class="glass-light rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300">
+                    <h2 class="text-lg font-bold mb-4 border-b border-gray-300/50 pb-2 text-gray-800">Add New Entry</h2>
+                    <form id="add-form" onsubmit="addTransaction(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Type</label>
+                            <select id="t-type" class="w-full p-2.5 bg-white/60 border border-white/50 rounded-xl focus:ring-2 focus:ring-blue-400 focus:bg-white/90 outline-none transition-all shadow-sm">
+                                <option value="Expense">Expense</option>
+                                <option value="Income">Income</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Category</label>
+                            <input type="text" id="t-cat" required placeholder="e.g. Groceries, Salary..." class="w-full p-2.5 bg-white/60 border border-white/50 rounded-xl focus:ring-2 focus:ring-blue-400 focus:bg-white/90 outline-none transition-all shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Amount ($)</label>
+                            <input type="number" id="t-amt" required min="0.01" step="0.01" placeholder="0.00" class="w-full p-2.5 bg-white/60 border border-white/50 rounded-xl focus:ring-2 focus:ring-blue-400 focus:bg-white/90 outline-none transition-all shadow-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
+                            <input type="date" id="t-date" required class="w-full p-2.5 bg-white/60 border border-white/50 rounded-xl focus:ring-2 focus:ring-blue-400 focus:bg-white/90 outline-none transition-all shadow-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-gray-900/90 text-white font-bold py-3 rounded-xl hover:bg-black shadow-[0_4px_10px_rgba(0,0,0,0.2)] hover:shadow-[0_6px_15px_rgba(0,0,0,0.3)] transform hover:-translate-y-0.5 transition-all mt-4">
+                            + Save Transaction
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Transactions Table -->
+            <div class="glass-light rounded-2xl p-6 lg:col-span-2 flex flex-col h-[700px] hover:-translate-y-1 transition-transform duration-300">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-300/50 pb-3">
+                    <h2 class="text-lg font-bold text-gray-800">Transaction History</h2>
+                    <button onclick="clearTransactions()" class="text-xs font-bold bg-red-500/10 text-red-600 border border-red-500/20 px-4 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                        Delete All Data
+                    </button>
+                </div>
+                <!-- Overflow container for table -->
+                <div class="overflow-y-auto flex-grow rounded-xl pr-2">
+                    <table class="min-w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-white/80 backdrop-blur-md shadow-sm z-10 rounded-t-xl">
+                            <tr class="text-xs uppercase text-gray-600 tracking-wider">
+                                <th class="py-3 px-4 font-bold rounded-tl-xl">Date</th>
+                                <th class="py-3 px-4 font-bold">Type</th>
+                                <th class="py-3 px-4 font-bold">Category</th>
+                                <th class="py-3 px-4 text-right font-bold rounded-tr-xl">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-table" class="text-sm">
+                            <!-- JS injected rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC (100% UNTOUCHED) -->
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api";
+        let UID = localStorage.getItem("expense_uid");
+
+        // Initialization
+        window.onload = () => {
+            document.getElementById('t-date').valueAsDate = new Date(); // Set default date to today
+            if(UID) showDashboard();
+        };
+
+        // --- UI UTILITY: TOAST NOTIFICATIONS ---
+        function showToast(message, type = "success") {
+            const toast = document.createElement("div");
+            const color = type === "success" ? "bg-green-600" : type === "error" ? "bg-red-600" : "bg-blue-600";
+            toast.className = `${color} text-white px-6 py-3 rounded shadow-lg font-semibold fade-in flex items-center justify-between min-w-[250px]`;
+            toast.innerHTML = `<span>${message}</span>`;
+            
+            document.getElementById("toast-container").appendChild(toast);
+            
+            // Remove toast after 3 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- AUTH LOGIC ---
+        async function login() {
+            const input = document.getElementById('uid-input').value.trim();
+            if(!input) return showToast("Please enter a UID", "error");
+            
+            const btn = document.getElementById('login-btn');
+            btn.innerText = "Verifying / Creating...";
+            btn.disabled = true;
+
+            UID = input;
+            
+            try {
+                // Ping server. The Backend handles creating the UID automatically if it's new.
+                const res = await fetch(`${API_URL}/auth`, { method: "POST", headers: { "X-User-UID": UID } });
+                if (res.ok) {
+                    localStorage.setItem("expense_uid", UID);
+                    showToast(`Logged in! Dashboard loaded for: ${UID}`, "success");
+                    showDashboard();
+                } else {
+                    showToast("Error connecting to server.", "error");
+                }
+            } catch (error) {
+                showToast("Cannot reach server. Is Python running?", "error");
+            } finally {
+                btn.innerText = "Access Dashboard";
+                btn.disabled = false;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("expense_uid");
+            UID = null;
+            document.getElementById('uid-input').value = '';
+            document.getElementById('login-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+            showToast("Successfully logged out", "info");
+        }
+
+        function showDashboard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            document.getElementById('display-uid').innerText = UID;
+            loadData();
+        }
+
+        // --- REAL-TIME DATA FETCHING ---
+        async function loadData() {
+            // Promise.all allows us to fetch transactions and summary simultaneously for faster loading
+            await Promise.all([loadTransactions(), loadSummary()]);
+        }
+
+        async function loadTransactions() {
+            const res = await fetch(`${API_URL}/transactions`, { headers: { "X-User-UID": UID } });
+            const data = await res.json();
+            const tbody = document.getElementById('transaction-table');
+            tbody.innerHTML = ""; // Clear table
+            
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-12 text-center text-gray-500 font-medium italic bg-white/30 rounded-lg mt-2 block w-full">No transactions yet. Add one to get started!</td></tr>`;
+                return;
+            }
+
+            // Populate table in real time
+            data.forEach(t => {
+                const isIncome = t.t_type === 'Income';
+                const textColor = isIncome ? 'text-green-600' : 'text-gray-900';
+                const badgeColor = isIncome ? 'bg-green-100/80 text-green-800 border-green-200' : 'bg-gray-200/80 text-gray-800 border-gray-300';
+                
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-200/60 hover:bg-white/50 fade-in transition-colors">
+                        <td class="py-3 px-4 text-gray-600 font-medium whitespace-nowrap">${t.date}</td>
+                        <td class="py-3 px-4">
+                            <span class="px-2.5 py-1 ${badgeColor} border rounded-md text-xs font-bold tracking-wide">${t.t_type}</span>
+                        </td>
+                        <td class="py-3 px-4 font-semibold text-gray-800">${t.category}</td>
+                        <td class="py-3 px-4 text-right font-black ${textColor} text-base">$${t.amount.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function loadSummary() {
+            const res = await fetch(`${API_URL}/transactions/summary`, { headers: { "X-User-UID": UID } });
+            const data = await res.json();
+            
+            // Update Summary Cards Instantly
+            document.getElementById('sum-income').innerText = `$${data.total_income.toFixed(2)}`;
+            document.getElementById('sum-expense').innerText = `$${data.total_spent.toFixed(2)}`;
+            
+            const balanceEl = document.getElementById('sum-balance');
+            balanceEl.innerText = `$${data.balance.toFixed(2)}`;
+            balanceEl.className = data.balance >= 0 ? "text-3xl font-extrabold text-green-600 drop-shadow-sm" : "text-3xl font-extrabold text-red-500 drop-shadow-sm";
+        }
+
+        // --- ADDING DATA (REAL-TIME UPDATES) ---
+        async function addTransaction(e) {
+            e.preventDefault(); // Prevents page reload
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.innerText = "Saving...";
+            btn.disabled = true;
+
+            const payload = {
+                t_type: document.getElementById('t-type').value,
+                category: document.getElementById('t-cat').value,
+                amount: parseFloat(document.getElementById('t-amt').value),
+                date: document.getElementById('t-date').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/transactions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-User-UID": UID },
+                    body: JSON.stringify(payload)
+                });
+
+                if(res.ok) {
+                    showToast("Transaction saved successfully!", "success");
+                    
+                    // Reset inputs
+                    document.getElementById('t-cat').value = '';
+                    document.getElementById('t-amt').value = '';
+                    
+                    // Trigger REAL-TIME update of UI
+                    loadData();
+                } else {
+                    showToast("Failed to save transaction.", "error");
+                }
+            } catch (err) {
+                showToast("Server error.", "error");
+            } finally {
+                btn.innerText = "+ Save Transaction";
+                btn.disabled = false;
+            }
+        }
+
+        // --- CLEARING DATA ---
+        async function clearTransactions() {
+            if(!confirm("Are you absolutely sure you want to clear ALL transactions? This cannot be undone.")) return;
+            
+            await fetch(`${API_URL}/transactions`, { method: "DELETE", headers: { "X-User-UID": UID } });
+            showToast("All data cleared from dashboard.", "info");
+            
+            // Trigger REAL-TIME update
+            loadData();
+        }
+    </script>
+</body>
+</html>
